@@ -1,0 +1,15 @@
+services:
+  panda:
+    build: .
+    image: panda-system:latest
+    container_name: panda
+    restart: unless-stopped
+    ports:
+      - "5700:5700"
+    environment:
+      # 生产环境务必修改为随机长字符串
+      - JWT_SECRET=change-me-to-a-random-secret
+      - PD_PORT=5700
+      - TZ=Asia/Shanghai
+    volumes:
+      - ./data:/app/data

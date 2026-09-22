@@ -1,0 +1,6 @@
+# 虚拟环境与运行时数据
+.venv/
+data/
+__pycache__/
+*.pyc
+.idea/
