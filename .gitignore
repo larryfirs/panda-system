@@ -4,3 +4,7 @@ data/
 __pycache__/
 *.pyc
 .idea/
+
+# 打包产物
+dist/
+*.zip

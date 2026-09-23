@@ -5,9 +5,10 @@ from pathlib import Path
 from fastapi import APIRouter, Body, Query
 from fastapi.responses import FileResponse
 
-from .. import config, utils
-from ..common import fail, ok
-from ..db import SessionLocal
+from .. import utils
+from ..core import config
+from ..core.common import fail, ok
+from ..core.db import SessionLocal
 from ..models import INSTANCE_RUNNING, RunningInstance
 
 router = APIRouter(prefix='/api/logs', tags=['log'])

@@ -5,7 +5,7 @@ from datetime import datetime
 from sqlalchemy import JSON, DateTime, Float, Integer, String, Text, UniqueConstraint
 from sqlalchemy.orm import Mapped, mapped_column
 
-from .db import Base
+from ..core.db import Base
 
 # 任务状态（back/data/cron.ts）
 CRON_RUNNING = 0

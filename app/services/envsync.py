@@ -2,8 +2,8 @@
 import re
 from collections import OrderedDict
 
-from . import config
-from .models import ENV_NORMAL, Env
+from ..core import config
+from ..models import ENV_NORMAL, Env
 
 VALID_NAME = re.compile(r'^[a-zA-Z_][0-9a-zA-Z_]*$')
 

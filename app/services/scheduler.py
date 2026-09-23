@@ -11,9 +11,9 @@ from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 from croniter import croniter
 
-from . import config
+from ..core import config
 from .executor import run_cron, schedule_trigger, get_system_config
-from .db import SessionLocal
+from ..core.db import SessionLocal
 
 ALIASES = {
     '@yearly': '0 0 1 1 *',
@@ -148,6 +148,6 @@ class PandaScheduler:
                 job.remove()
 
 
-from .models import Crontab as Crontab_  # noqa: E402
+from ..models import Crontab as Crontab_  # noqa: E402
 
 panda_scheduler = PandaScheduler()

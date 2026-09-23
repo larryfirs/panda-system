@@ -2,8 +2,8 @@ import os
 import sys
 from pathlib import Path
 
-# 安装根目录（对应青龙的 QL_DIR），默认 python_version/
-PD_DIR = Path(os.environ.get('PD_DIR') or Path(__file__).resolve().parent.parent).resolve()
+# 安装根目录（对应青龙的 QL_DIR），默认项目根目录
+PD_DIR = Path(os.environ.get('PD_DIR') or Path(__file__).resolve().parent.parent.parent).resolve()
 # 数据目录（对应 QL_DATA_DIR）
 DATA_DIR = Path(os.environ.get('PD_DATA_DIR') or PD_DIR / 'data').resolve()
 
@@ -32,7 +32,7 @@ DATABASE_URL = os.environ.get(
 )
 
 HOST = os.environ.get('PD_HOST', '0.0.0.0')
-PORT = int(os.environ.get('PD_PORT') or os.environ.get('BACK_PORT') or 5700)
+PORT = int(os.environ.get('PD_PORT') or os.environ.get('BACK_PORT') or 3939)
 # 子路径部署（对应 QlBaseUrl），如 '/panda'
 BASE_URL = ('/' + os.environ.get('PD_BASE_URL', '').strip('/')).rstrip('/')
 if BASE_URL == '/':

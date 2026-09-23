@@ -5,9 +5,10 @@ import sys
 import time
 from logging.handlers import TimedRotatingFileHandler
 
-from . import auth, config, envsync
+from . import config
+from ..services import auth, envsync
 from .db import Base, SessionLocal, engine
-from .models import (
+from ..models import (
     CRON_IDLE,
     DEP_QUEUED,
     INSTANCE_RUNNING,
@@ -84,12 +85,12 @@ def init_data():
 
         envsync.set_envs(s)
 
-    from .routers.cron import render_crontab_list
+    from ..routers.cron import render_crontab_list
     render_crontab_list()
 
 
 def start_scheduler():
-    from .scheduler import panda_scheduler
+    from ..services.scheduler import panda_scheduler
     conf = auth.get_system_config_info()
     panda_scheduler._tz = conf.get('timezone') or config.DEFAULT_TIMEZONE
     panda_scheduler.scheduler = type(panda_scheduler.scheduler)(timezone=panda_scheduler._tz)
@@ -108,7 +109,7 @@ def start_scheduler():
             ids.append(d.id)
         s.commit()
 
-    from .routers import dependence as dep_router
+    from ..routers import dependence as dep_router
     for i in ids:
         dep_router.enqueue(i)
 
@@ -122,12 +123,12 @@ def start_scheduler():
 
 
 def _clean_logs():
-    from .routers.system import clean_old_logs
+    from ..routers.system import clean_old_logs
     clean_old_logs()
 
 
 def _clean_retention():
-    from .routers.system import retention_cleanup
+    from ..routers.system import retention_cleanup
     from fastapi import Body  # noqa
     try:
         retention_cleanup({'confirmation': 'CLEAN'})

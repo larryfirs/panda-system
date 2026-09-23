@@ -7,9 +7,9 @@ import json
 import threading
 import time
 
-from . import config, security
-from .db import SessionLocal
-from .models import SystemRow
+from ..core import config, security
+from ..core.db import SessionLocal
+from ..models import SystemRow
 
 _auth_lock = threading.Lock()
 

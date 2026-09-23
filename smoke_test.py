@@ -5,7 +5,7 @@ import time
 
 import httpx
 
-BASE = 'http://127.0.0.1:5700'
+BASE = 'http://127.0.0.1:3939'
 c = httpx.Client(base_url=BASE, timeout=30)
 TOKEN = {'authorization': ''}
 

@@ -3,9 +3,10 @@ import time
 
 from fastapi import APIRouter, Body, Query
 
-from .. import config, utils
-from ..common import fail, ok
-from ..db import SessionLocal
+from .. import utils
+from ..core import config
+from ..core.common import fail, ok
+from ..core.db import SessionLocal
 from ..models import INSTANCE_RUNNING, Crontab, RunningInstance
 
 router = APIRouter(prefix='/api/records', tags=['records'])

@@ -5,9 +5,11 @@ from pathlib import Path
 
 from fastapi import APIRouter, Body, File, Request, UploadFile
 
-from .. import auth, config, notify, security, utils
-from ..common import fail, msg, ok
-from ..db import SessionLocal
+from .. import utils
+from ..core import config, security
+from ..services import auth, notify
+from ..core.common import fail, msg, ok
+from ..core.db import SessionLocal
 
 router = APIRouter(prefix='/api/user', tags=['user'])
 

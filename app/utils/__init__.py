@@ -7,7 +7,7 @@ import sys
 from datetime import datetime
 from pathlib import Path
 
-from . import config
+from ..core import config
 
 ENV_NAME_RE = re.compile(r'^[a-zA-Z_][0-9a-zA-Z_]*$')
 

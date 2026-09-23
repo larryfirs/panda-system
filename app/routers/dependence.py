@@ -11,9 +11,10 @@ from queue import Queue
 
 from fastapi import APIRouter, Body, Query
 
-from .. import config, utils
-from ..common import fail, ok
-from ..db import SessionLocal
+from .. import utils
+from ..core import config
+from ..core.common import fail, ok
+from ..core.db import SessionLocal
 from ..models import (
     DEP_CANCELLED,
     DEP_INSTALLED,
@@ -29,7 +30,7 @@ from ..models import (
     DEP_TYPE_NAMES,
     Dependence,
 )
-from ..ws import ws_manager
+from ..services.ws import ws_manager
 
 router = APIRouter(prefix='/api/dependencies', tags=['dependence'])
 

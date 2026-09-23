@@ -4,9 +4,10 @@ from datetime import datetime
 
 from fastapi import APIRouter, Body, File, Query, Request, UploadFile
 
-from .. import config, envsync
-from ..common import fail, ok
-from ..db import SessionLocal
+from ..core import config
+from ..services import envsync
+from ..core.common import fail, ok
+from ..core.db import SessionLocal
 from ..models import (
     ENV_DISABLED,
     ENV_NORMAL,

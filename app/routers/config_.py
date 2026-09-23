@@ -10,8 +10,8 @@ from pathlib import Path
 from fastapi import APIRouter, Body, Query, Request
 from fastapi.responses import PlainTextResponse
 
-from .. import config
-from ..common import fail, ok
+from ..core import config
+from ..core.common import fail, ok
 
 router = APIRouter(prefix='/api/configs', tags=['config'])
 

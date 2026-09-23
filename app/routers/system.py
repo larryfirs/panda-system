@@ -11,9 +11,11 @@ from pathlib import Path
 from fastapi import APIRouter, Body, Query
 from fastapi.responses import JSONResponse
 
-from .. import auth, config, executor, notify, utils
-from ..common import fail, ok
-from ..db import SessionLocal
+from .. import utils
+from ..core import config
+from ..services import auth, executor, notify
+from ..core.common import fail, ok
+from ..core.db import SessionLocal
 from ..models import (
     INSTANCE_RUNNING,
     Crontab,
@@ -22,7 +24,7 @@ from ..models import (
     DEP_QUEUED,
     RunningInstance,
 )
-from ..scheduler import panda_scheduler
+from ..services.scheduler import panda_scheduler
 
 router = APIRouter(prefix='/api/system', tags=['system'])
 
@@ -165,7 +167,7 @@ def send_notify_api(payload: dict = Body(...)):
 @router.put('/reload')
 def reload_system(payload: dict = Body(default={})):
     """重启面板进程（Docker/supervisor/服务管理器拉起时生效）。"""
-    from ..ws import ws_manager
+    from ..services.ws import ws_manager
     ws_manager.broadcast('reloadSystem', '系统正在重启')
 
     def _restart():
@@ -322,6 +324,6 @@ def auth_reset(payload: dict = Body(default={})):
 
 
 def security_hash(pw: str) -> str:
-    from .. import security
+    from ..core import security
     return security.hash_password(pw)
 

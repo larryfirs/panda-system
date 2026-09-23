@@ -7,11 +7,12 @@ from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import FileResponse, JSONResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import auth, config
-from .init import init_data, seed_files, setup_logging, start_scheduler
+from .core import config
+from .services import auth
+from .core.bootstrap import init_data, seed_files, setup_logging, start_scheduler
 from .routers import all_routers
-from .security import normalize_token
-from .ws import ws_manager
+from .core.security import normalize_token
+from .services.ws import ws_manager
 
 WHITE_LIST_EXACT = set(config.API_WHITE_LIST)
 

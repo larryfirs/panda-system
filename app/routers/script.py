@@ -7,9 +7,11 @@ from pathlib import Path
 from fastapi import APIRouter, Body, File, Form, Query, Request, UploadFile
 from fastapi.responses import FileResponse
 
-from .. import config, executor, utils
-from ..common import fail, ok
-from ..ws import ws_manager
+from .. import utils
+from ..core import config
+from ..services import executor
+from ..core.common import fail, ok
+from ..services.ws import ws_manager
 
 router = APIRouter(prefix='/api/scripts', tags=['script'])
 
@@ -225,6 +227,6 @@ def _argv_for(path: Path, args):
 
 
 def executor_build_env():
-    from ..db import SessionLocal
+    from ..core.db import SessionLocal
     with SessionLocal() as s:
         return executor.build_env(s)
