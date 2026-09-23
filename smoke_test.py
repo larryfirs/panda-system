@@ -1,5 +1,6 @@
 """熊猫系统 API 冒烟测试（开发自测用）：python smoke_test.py"""
 import json
+import os
 import sys
 import time
 
@@ -23,14 +24,13 @@ def show(name, resp, expect=200):
     return data.get('data') if isinstance(data, dict) else data
 
 
-# --- 用户/初始化 ---
+# --- 用户/登录 ---
 show('system meta', c.get('/api/system'))
-r = c.put('/api/user/init', json={'username': 'admin', 'password': 'panda123'})
-print('init:', r.text)  # 可能已初始化
 r = c.post('/api/user/login', json={'username': 'admin', 'password': 'wrong'})
 assert r.json()['code'] == 400, '错误密码应被拒绝'
 print('PASS 错误密码被拒绝')
-r = c.post('/api/user/login', json={'username': 'admin', 'password': 'panda123'})
+# 默认账号 admin/admin；改过密码后运行前设置环境变量 PD_SMOKE_PASSWORD=<新密码>
+r = c.post('/api/user/login', json={'username': 'admin', 'password': os.environ.get('PD_SMOKE_PASSWORD', 'admin')})
 token = show('login', r)['token']
 TOKEN['authorization'] = f'Bearer {token}'
 

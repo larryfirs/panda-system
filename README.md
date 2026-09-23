@@ -160,7 +160,9 @@ py -3.14 -m venv .venv
 .\.venv\Scripts\python.exe main.py
 ```
 
-浏览器访问 <http://127.0.0.1:3939>，默认账号 `admin` / `admin`，登录后可随时在「用户管理」中修改密码。
+浏览器访问 <http://127.0.0.1:3939>，直接用默认账号 **`admin` / `admin`** 登录，
+没有强制初始化步骤。登录后请尽快在「用户管理」中修改用户名和密码——
+`admin`/`admin` 是人尽皆知的默认值，面板默认监听所有网卡，不改等于把门敞开。
 
 换端口启动：
 
@@ -175,6 +177,8 @@ $env:PD_PORT = "8000"; .\.venv\Scripts\python.exe main.py
 ```powershell
 $env:PYTHONIOENCODING = "utf-8"; .\.venv\Scripts\python.exe smoke_test.py
 ```
+
+冒烟测试默认用 `admin`/`admin` 登录；如果你已改过密码，先设置 `$env:PD_SMOKE_PASSWORD = "新密码"` 再运行。
 
 全部 PASS 说明登录、任务、脚本、日志、依赖、通知等链路完好。
 

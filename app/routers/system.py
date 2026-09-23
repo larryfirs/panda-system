@@ -35,7 +35,6 @@ VERSION = '1.0.0'
 @router.get('/')
 def system_meta():
     return ok({
-        'isInitialized': auth.is_initialized(),
         'version': VERSION,
         'publishTime': '',
         'branch': 'panda',

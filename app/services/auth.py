@@ -90,14 +90,6 @@ def save_auth_info(info: dict, session=None):
         s.close()
 
 
-def is_default_auth(info: dict) -> bool:
-    return info.get('username') == config.DEFAULT_USERNAME and info.get('password') == config.DEFAULT_PASSWORD
-
-
-def is_initialized() -> bool:
-    return not is_default_auth(get_auth_info())
-
-
 def get_system_config_row() -> SystemRow:
     with SessionLocal() as s:
         return _get_or_create(s, 'systemConfig', {**SYSTEM_CONFIG_DEFAULTS})

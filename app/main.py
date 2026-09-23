@@ -104,7 +104,7 @@ def _is_public(path: str, method: str) -> bool:
         return True
     if path in WHITE_LIST_EXACT:
         return True
-    # GET /api/system 免鉴权（初始化检测）
+    # GET /api/system 免鉴权（版本信息/健康探测）
     if path.rstrip('/') == '/api/system' and method == 'GET':
         return True
     return False

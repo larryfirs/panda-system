@@ -73,7 +73,6 @@ DEFAULT_PASSWORD = 'admin'
 API_WHITE_LIST = [
     '/api/user/login',
     '/api/user/two-factor/login',
-    '/api/user/init',
     '/api/user/notification/init',
     '/api/system',
     '/api/health',

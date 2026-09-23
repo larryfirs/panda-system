@@ -1,4 +1,4 @@
-"""用户管理：登录/登出/初始化/改密/2FA/登录日志/IP 黑名单/通知设置/头像。"""
+"""用户管理：登录/登出/改密/2FA/登录日志/IP 黑名单/通知设置/头像。"""
 import math
 import time
 from pathlib import Path
@@ -45,8 +45,6 @@ def _do_login(payload, request: Request):
     info = auth.get_auth_info()
     if ip in (info.get('blockedIps') or []):
         return fail('该 IP 已被列入黑名单', 403)
-    if auth.is_default_auth(info):
-        return fail('请先初始化账号', 450)
 
     wait = _check_lock(info)
     if wait:
@@ -138,23 +136,6 @@ def two_factor_login(request: Request, payload: dict = Body(default={})):
     return _issue_token(info, platform, ip, request)
 
 
-@router.put('/init')
-def initialize(request: Request, payload: dict = Body(default={})):
-    if not auth.is_default_auth(auth.get_auth_info()):
-        return fail('账号已初始化', 450)
-    username = (payload.get('username') or '').strip()
-    password = payload.get('password') or ''
-    if not username or not password:
-        return fail('用户名与密码不能为空', 400)
-    if password == config.DEFAULT_PASSWORD:
-        return fail('密码不能为默认值', 400)
-    info = auth.get_auth_info()
-    info['username'] = username
-    info['password'] = security.hash_password(password)
-    auth.save_auth_info(info)
-    return msg('初始化成功')
-
-
 @router.get('')
 @router.get('/')
 def user_info():
@@ -171,8 +152,6 @@ def user_info():
 def update_account(payload: dict = Body(default={})):
     username = (payload.get('username') or '').strip()
     password = payload.get('password') or ''
-    if password == config.DEFAULT_PASSWORD:
-        return fail('密码不能为默认值', 400)
     info = auth.get_auth_info()
     if username:
         info['username'] = username

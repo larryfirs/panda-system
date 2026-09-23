@@ -165,26 +165,18 @@ async function route() {
 }
 window.addEventListener('hashchange', route);
 
-/* ---------------- login / init ---------------- */
+/* ---------------- login ---------------- */
 async function renderLogin() {
-  const sys = await fetch('/api/system').then(r => r.json()).then(d => d.data).catch(() => ({ isInitialized: true }));
   $app.innerHTML = '';
   const username = h('input', { type: 'text', placeholder: '用户名', value: 'admin' });
   const password = h('input', { type: 'password', placeholder: '密码' });
   const codeIn = h('input', { type: 'text', placeholder: '两步验证码', style: 'display:none' });
   const err = h('div', { class: 'err' });
-  const btn = h('button', { class: 'btn primary', style: 'width:100%;padding:9px', onclick: submit }, sys.isInitialized ? '登 录' : '初始化账号');
+  const btn = h('button', { class: 'btn primary', style: 'width:100%;padding:9px', onclick: submit }, '登 录');
 
   async function submit() {
     err.textContent = '';
     try {
-      if (!sys.isInitialized && !twoFactorMode) {
-        await api('PUT', '/api/user/init', { json: { username: username.value, password: password.value } });
-        toast('初始化成功，请登录');
-        sys.isInitialized = true;
-        btn.textContent = '登 录';
-        return;
-      }
       let r;
       if (twoFactorMode) {
         r = await api('PUT', '/api/user/two-factor/login', { json: { username: username.value, password: password.value, code: codeIn.value } });
@@ -213,7 +205,7 @@ async function renderLogin() {
     h('div', { class: 'login-card' },
       h('img', { class: 'logo', src: '/assets/logo.png' }),
       h('h1', {}, panelTitle),
-      h('div', { class: 'sub' }, sys.isInitialized ? '定时任务管理平台' : '首次使用，请设置管理员账号（不能为默认密码 admin）'),
+      h('div', { class: 'sub' }, '定时任务管理平台'),
       h('label', { class: 'field' }, h('span', {}, '用户名'), username),
       h('label', { class: 'field' }, h('span', {}, '密码'), password),
       codeIn, err, btn,
