@@ -88,7 +88,10 @@ def create_app() -> FastAPI:
     @app.get('/', include_in_schema=False)
     @app.get('/index.html', include_in_schema=False)
     def spa():
-        return FileResponse(config.STATIC_DIR / 'index.html')
+        return FileResponse(
+            config.STATIC_DIR / 'index.html',
+            headers={'Cache-Control': 'no-cache, no-store, must-revalidate'},
+        )
 
     @app.exception_handler(Exception)
     async def _err(request: Request, exc: Exception):

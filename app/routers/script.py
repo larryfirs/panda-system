@@ -130,6 +130,31 @@ def rename_script(payload: dict = Body(...)):
     return ok('重命名成功')
 
 
+@router.put('/move')
+def move_script(payload: dict = Body(...)):
+    """跨目录移动/拖拽：把 path/filename 移到 destPath（相对 scripts 根，空为根目录）。"""
+    filename = payload.get('filename') or ''
+    dest_path = payload.get('destPath') or ''
+    try:
+        src = _resolve(payload.get('path', ''), filename)
+        dst_dir = _resolve(dest_path) if dest_path else config.SCRIPT_PATH
+    except PermissionError:
+        return fail('暂无权限', 403)
+    if not src.exists():
+        return fail('原文件不存在', 404)
+    if not dst_dir.is_dir():
+        return fail('目标目录不存在', 400)
+    dst = dst_dir / src.name
+    if src == dst:
+        return ok('已在目标位置')
+    if src.is_dir() and src in dst.parents:
+        return fail('不能把文件夹移动到它自己内部', 400)
+    if dst.exists():
+        return fail('目标已存在同名文件', 400)
+    shutil.move(str(src), str(dst))
+    return ok('移动成功')
+
+
 @router.delete('')
 def delete_script(payload: dict = Body(...)):
     try:

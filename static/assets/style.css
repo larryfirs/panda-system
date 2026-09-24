@@ -74,6 +74,16 @@ pre.logview { background: #0f172a; color: #d7e3f4; padding: 14px; border-radius:
 .tree .node:hover { background: #eef6ef; }
 .tree .node.active { background: #e2f3e6; color: var(--primary-dark); }
 .tree .children { padding-left: 14px; }
+.tree .node.drag-over { background: #d3e9d6; outline: 1px dashed var(--primary); outline-offset: -1px; }
+.tree .node .inline-name { font-size: 13px; padding: 2px 6px; border: 1px solid var(--primary); border-radius: 4px; width: 160px; }
+.tree:focus { outline: none; }
+.hint { color: var(--muted); font-size: 12px; margin-top: 6px; line-height: 1.6; }
+/* 右键菜单 */
+.ctx-menu { position: fixed; z-index: 200; background: #fff; border: 1px solid var(--border); border-radius: 8px; box-shadow: 0 6px 20px rgba(15, 23, 32, .15); padding: 4px; min-width: 150px; }
+.ctx-menu .it { padding: 6px 12px; font-size: 13px; border-radius: 5px; cursor: pointer; white-space: nowrap; }
+.ctx-menu .it:hover { background: #eef6ef; }
+.ctx-menu .it.danger { color: var(--danger); }
+.ctx-menu .sep { height: 1px; background: var(--border); margin: 4px 6px; }
 .statgrid { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin-bottom: 16px; }
 .stat { background: var(--panel); border: 1px solid var(--border); border-radius: 10px; padding: 14px 16px; }
 .stat .v { font-size: 24px; font-weight: 700; }

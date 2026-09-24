@@ -38,7 +38,9 @@ async function api(method, url, opt = {}) {
     headers['content-type'] = 'application/json';
     init.body = JSON.stringify(opt.json);
   } else if (opt.form) {
-    init.body = opt.form;
+    const fd = new FormData();
+    Object.entries(opt.form).forEach(([k, v]) => fd.append(k, v ?? ''));
+    init.body = fd;
   }
   const resp = await fetch(full, init);
   if (resp.status === 401) {
@@ -453,69 +455,226 @@ routes.records = async (view) => {
 
 /* ---------------- scripts ---------------- */
 routes.scripts = async (view) => {
-  let current = { path: '', filename: '' };
+  let current = { path: '', filename: '' };      // 编辑器中打开的文件
+  let sel = null, opened = new Set(['/']), editing = null, tree = null, runPid = null;
   const contentEl = h('textarea', { class: 'grow-editor', spellcheck: 'false', placeholder: '选择左侧文件进行编辑…' });
   const outputEl = h('pre', { class: 'logview', style: 'height:180px;margin-top:10px;display:none' });
-  const treeEl = h('div', { class: 'tree' });
-  let runPid = null;
+  const treeEl = h('div', { class: 'tree', tabindex: '0' });
+
+  const dirOf = n => (n.parent === '/' ? '' : n.parent);
+  const joinKey = (dir, name) => (dir ? dir + '/' + name : name);
+  function findNode(n, key) {
+    if (n.key === key) return n;
+    for (const c of n.children || []) { const r = findNode(c, key); if (r) return r; }
+    return null;
+  }
 
   async function loadTree() {
-    const d = await api('GET', '/api/scripts').then(x => x.data);
-    treeEl.innerHTML = '';
-    treeEl.append(node(d, ''));
+    tree = (await api('GET', '/api/scripts')).data;
+    render();
   }
-  function node(n, depth) {
+  function render() {
+    treeEl.innerHTML = '';
+    treeEl.append(nodeEl(tree));
+  }
+  function nodeEl(n) {
+    const isDir = n.type === 'directory';
     const box = h('div');
-    const line = h('div', { class: 'node', onclick: () => { if (n.type === 'file') openFile(n); else box.querySelector('.children')?.classList.toggle('hide'); } },
-      (n.type === 'directory' ? (n.children?.length ? '📂 ' : '📁 ') : '📄 ') + n.title);
+    let line;
+    if (editing && editing.mode === 'rename' && editing.key === n.key) {
+      line = h('div', { class: 'node' }, nameInput(n.title, v => commitRename(n, v)));
+    } else {
+      const icon = isDir ? (opened.has(n.key) ? '📂 ' : '📁 ') : '📄 ';
+      const evs = {
+        class: 'node' + (sel === n.key ? ' active' : ''),
+        draggable: 'true', title: n.key,
+        onclick: () => clickNode(n),
+        oncontextmenu: e => { e.preventDefault(); e.stopPropagation(); showMenu(e, n); },
+        ondragstart: e => { e.dataTransfer.setData('text/plain', n.key); e.dataTransfer.effectAllowed = 'move'; },
+      };
+      if (isDir) {
+        evs.ondragover = e => { e.preventDefault(); line.classList.add('drag-over'); };
+        evs.ondragleave = () => line.classList.remove('drag-over');
+        evs.ondrop = e => { e.preventDefault(); line.classList.remove('drag-over'); dropOn(n, e); };
+      }
+      line = h('div', evs, icon + n.title);
+    }
     box.append(line);
-    if (n.children?.length) {
-      const kids = h('div', { class: 'children' }, n.children.map(ch => node(ch, depth + 1)));
+    if (isDir) {
+      const kids = h('div', { class: 'children' + (opened.has(n.key) ? '' : ' hide') });
+      if (editing && editing.mode !== 'rename' && editing.parentKey === n.key) {
+        kids.append(h('div', { class: 'node' },
+          nameInput('', v => commitNew(v), editing.mode === 'newDir' ? '文件夹名称' : '文件名称，如 demo.py')));
+      }
+      (n.children || []).forEach(c => kids.append(nodeEl(c)));
       box.append(kids);
     }
     return box;
   }
+  function nameInput(value, done, ph) {
+    const inp = h('input', {
+      class: 'inline-name', value, placeholder: ph || '', spellcheck: 'false',
+      onclick: e => e.stopPropagation(),
+      onkeydown: e => {
+        e.stopPropagation();
+        if (e.key === 'Enter') done(inp.value.trim());
+        else if (e.key === 'Escape') { editing = null; render(); }
+      },
+      onblur: () => { if (editing) { editing = null; render(); } },
+    });
+    setTimeout(() => {
+      inp.focus();
+      const i = inp.value.lastIndexOf('.');
+      if (i > 0) inp.setSelectionRange(0, i); else inp.select();
+    }, 0);
+    return inp;
+  }
+  function clickNode(n) {
+    sel = n.key;
+    if (n.type === 'directory') { if (n.key !== '/') opened.has(n.key) ? opened.delete(n.key) : opened.add(n.key); }
+    else openFile(n);
+    render();
+  }
   async function openFile(n) {
-    const dir = n.parent === '/' ? '' : n.parent;
+    const dir = dirOf(n);
     current = { path: dir, filename: n.title };
     const d = await api('GET', '/api/scripts/detail', { params: { path: dir, file: n.title } });
     contentEl.value = d.data;
     contentEl.disabled = false;
   }
+
+  /* ---- 新建 / 重命名 / 删除 / 移动 / 上传 ---- */
+  async function commitNew(val) {
+    const { mode, parentKey } = editing;
+    editing = null;
+    if (!val) return render();
+    const dir = parentKey === '/' ? '' : parentKey;
+    try {
+      if (mode === 'newDir') await api('POST', '/api/scripts', { form: { directory: joinKey(dir, val) } });
+      else await api('POST', '/api/scripts', { form: { filename: val, path: dir, content: '' } });
+      toast('创建成功');
+      sel = joinKey(dir, val);
+      opened.add(parentKey);
+      await loadTree();
+      if (mode === 'newFile') { const n = findNode(tree, sel); if (n) openFile(n); }
+    } catch (e) { toast(e.message || '创建失败', true); render(); }
+  }
+  async function commitRename(n, val) {
+    editing = null;
+    if (!val || val === n.title) return render();
+    const dir = dirOf(n);
+    try {
+      await api('PUT', '/api/scripts/rename', { json: { path: dir, filename: n.title, newFilename: val } });
+      toast('重命名成功');
+      sel = joinKey(dir, val);
+      if (current.path === dir && current.filename === n.title) current.filename = val;
+      await loadTree();
+    } catch (e) { toast(e.message || '重命名失败', true); render(); }
+  }
+  async function removeNode(n) {
+    if (!confirm(`确认删除${n.type === 'directory' ? '文件夹（连同内部全部内容）' : '文件'} ${n.title}？`)) return;
+    try {
+      await api('DELETE', '/api/scripts', { json: { path: dirOf(n), filename: n.title } });
+      if (current.path === dirOf(n) && current.filename === n.title) {
+        current = { path: '', filename: '' }; contentEl.value = ''; contentEl.disabled = true;
+      }
+      if (sel === n.key) sel = null;
+      toast('已删除'); await loadTree();
+    } catch (e) { toast(e.message || '删除失败', true); }
+  }
+  async function moveNode(dirNode, srcKey) {
+    const src = findNode(tree, srcKey);
+    if (!src || src.key === dirNode.key) return;
+    if (src.type === 'directory' && (dirNode.key === src.key || dirNode.key.startsWith(src.key + '/')))
+      return toast('不能把文件夹移动到它自己内部', true);
+    try {
+      await api('PUT', '/api/scripts/move', { json: { path: dirOf(src), filename: src.title, destPath: dirNode.key === '/' ? '' : dirNode.key } });
+      toast(`已移动到 ${dirNode.key === '/' ? '根目录' : dirNode.title}`);
+      if (current.filename && joinKey(current.path, current.filename) === srcKey) {
+        current = { path: '', filename: '' }; contentEl.value = ''; contentEl.disabled = true;
+      }
+      await loadTree();
+    } catch (e) { toast(e.message || '移动失败', true); }
+  }
+  async function uploadOsFiles(dirNode, files) {
+    const dir = dirNode.key === '/' ? '' : dirNode.key;
+    try {
+      for (const f of files) await api('POST', '/api/scripts', { form: { file: f, path: dir } });
+      toast(`已上传 ${files.length} 个文件`); await loadTree();
+    } catch (e) { toast(e.message || '上传失败', true); }
+  }
+  function dropOn(dirNode, e) {
+    const srcKey = e.dataTransfer.getData('text/plain');
+    if (srcKey && tree && findNode(tree, srcKey)) return moveNode(dirNode, srcKey);
+    if (e.dataTransfer.files && e.dataTransfer.files.length) return uploadOsFiles(dirNode, e.dataTransfer.files);
+  }
+  async function downloadFile(n) {
+    if (n.type !== 'file') return toast('只能下载文件', true);
+    const resp = await fetch('/api/scripts/download', {
+      method: 'POST',
+      headers: { authorization: 'Bearer ' + (localStorage.getItem(LS_TOKEN) || ''), 'content-type': 'application/json' },
+      body: JSON.stringify({ path: dirOf(n), filename: n.title }),
+    });
+    const ct = resp.headers.get('content-type') || '';
+    if (!resp.ok || ct.includes('application/json')) {
+      let m = '下载失败';
+      try { m = (await resp.json()).message || m; } catch (e) {}
+      return toast(m, true);
+    }
+    const url = URL.createObjectURL(await resp.blob());
+    const a = document.createElement('a');
+    a.href = url; a.download = n.title; a.click();
+    setTimeout(() => URL.revokeObjectURL(url), 5000);
+  }
+
+  /* ---- 右键菜单 ---- */
+  let menuEl = null;
+  function closeMenu() { if (menuEl) { menuEl.remove(); menuEl = null; } }
+  function showMenu(e, n) {
+    closeMenu();
+    sel = n.key; render();
+    const isRoot = n.key === '/';
+    const items = [];
+    if (n.type === 'directory') {
+      items.push(['📄 新建文件', () => startNew(n.key, 'newFile')]);
+      items.push(['📁 新建文件夹', () => startNew(n.key, 'newDir')]);
+    }
+    if (!isRoot) {
+      items.push(['✏️ 重命名 (F2)', () => startRename(n)]);
+      if (n.type === 'file') items.push(['⬇️ 下载', () => downloadFile(n)]);
+      items.push(['sep']);
+      items.push(['🗑 删除 (Del)', () => removeNode(n), true]);
+    }
+    items.push(['sep']);
+    items.push(['🔄 刷新', () => loadTree()]);
+    menuEl = h('div', {
+      class: 'ctx-menu',
+      style: `left:${Math.min(e.clientX, innerWidth - 180)}px;top:${Math.min(e.clientY, innerHeight - items.length * 32 - 20)}px`,
+    }, items.map(it => it[0] === 'sep'
+      ? h('div', { class: 'sep' })
+      : h('div', { class: 'it' + (it[2] ? ' danger' : ''), onclick: () => { closeMenu(); it[1](); } }, it[0])));
+    document.body.append(menuEl);
+    setTimeout(() => document.addEventListener('click', closeMenu, { once: true }), 0);
+  }
+  function startNew(parentKey, mode) { opened.add(parentKey); editing = { mode, parentKey }; render(); }
+  function startRename(n) { editing = { mode: 'rename', key: n.key }; render(); }
+
+  /* ---- 工具栏（作用于选中节点） ---- */
+  function targetDir() {
+    if (!sel || !tree) return '/';
+    const n = findNode(tree, sel);
+    if (!n) return '/';
+    return n.type === 'directory' ? n.key : (dirOf(n) || '/');
+  }
+  function tbSelNode() {
+    const n = sel && tree && findNode(tree, sel);
+    if (!n || n.key === '/') { toast('请先在左侧选中一个文件/文件夹', true); return null; }
+    return n;
+  }
   async function save() {
     if (!current.filename) return toast('未选择文件', true);
     await api('PUT', '/api/scripts', { json: { path: current.path, filename: current.filename, content: contentEl.value } });
     toast('已保存'); loadTree();
-  }
-  async function newFile() {
-    const name = h('input', { type: 'text', placeholder: '如 demo.py（可含子目录 dir/demo.py）' });
-    modal('新建文件', h('label', { class: 'field' }, h('span', {}, '文件名'), name), async () => {
-      await api('POST', '/api/scripts', { form: { filename: name.value, path: '', content: '' } });
-      toast('创建成功'); loadTree();
-    });
-  }
-  async function newDir() {
-    const name = h('input', { type: 'text', placeholder: '文件夹名' });
-    modal('新建文件夹', h('label', { class: 'field' }, h('span', {}, '名称'), name), async () => {
-      await api('POST', '/api/scripts', { form: { directory: name.value } });
-      toast('创建成功'); loadTree();
-    });
-  }
-  async function rename() {
-    if (!current.filename) return toast('未选择文件', true);
-    const name = h('input', { type: 'text', value: current.filename });
-    modal('重命名 / 移动', h('label', { class: 'field' }, h('span', {}, '新名称（可带相对路径实现移动）'), name), async () => {
-      await api('POST', '/api/scripts', { form: { filename: name.value, path: current.path, content: contentEl.value, originFilename: current.filename } });
-      current = { path: name.value.includes('/') ? name.value.split('/').slice(0, -1).join('/') : current.path, filename: name.value.split('/').pop() };
-      toast('已重命名'); loadTree();
-    });
-  }
-  async function del() {
-    if (!current.filename) return toast('未选择文件', true);
-    if (!confirm('确认删除 ' + current.filename)) return;
-    await api('DELETE', '/api/scripts', { json: { path: current.path, filename: current.filename } });
-    contentEl.value = ''; current = { path: '', filename: '' };
-    toast('已删除'); loadTree();
   }
   async function run() {
     if (!current.filename) return toast('未选择文件', true);
@@ -523,26 +682,45 @@ routes.scripts = async (view) => {
     outputEl.textContent = '> 运行中…\n';
     runPid = (await api('PUT', '/api/scripts/run', { json: { path: current.path, filename: current.filename, content: contentEl.value } })).data;
   }
+
+  treeEl.addEventListener('keydown', e => {
+    if (!sel || editing || !tree) return;
+    const n = findNode(tree, sel);
+    if (!n || n.key === '/') return;
+    if (e.key === 'F2') { e.preventDefault(); startRename(n); }
+    else if (e.key === 'Delete') { e.preventDefault(); removeNode(n); }
+  });
+  treeEl.addEventListener('contextmenu', e => {
+    if (e.target === treeEl) { e.preventDefault(); showMenu(e, tree); }
+  });
+  treeEl.addEventListener('dragover', e => { if (e.target === treeEl) e.preventDefault(); });
+  treeEl.addEventListener('drop', e => {
+    if (e.target === treeEl) { e.preventDefault(); dropOn(tree, e); }
+  });
+
   const off = onWs(m => {
     if (m.type === 'manuallyRunScript' && document.body.contains(outputEl)) {
       outputEl.textContent += m.message;
       outputEl.scrollTop = outputEl.scrollHeight;
     }
   });
-  new MutationObserver(() => { if (!document.body.contains(outputEl)) { off(); } }).observe($app, { childList: true, subtree: true });
+  new MutationObserver(() => { if (!document.body.contains(outputEl)) { off(); closeMenu(); } }).observe($app, { childList: true, subtree: true });
 
   view.append(
     h('div', { class: 'toolbar' },
       h('button', { class: 'btn primary', onclick: save }, '💾 保存'),
-      h('button', { class: 'btn', onclick: newFile }, '新建文件'),
-      h('button', { class: 'btn', onclick: newDir }, '新建文件夹'),
-      h('button', { class: 'btn', onclick: rename }, '重命名/移动'),
-      h('button', { class: 'btn danger', onclick: del }, '删除'),
+      h('button', { class: 'btn', onclick: () => startNew(targetDir(), 'newFile') }, '＋ 新建文件'),
+      h('button', { class: 'btn', onclick: () => startNew(targetDir(), 'newDir') }, '＋ 新建文件夹'),
+      h('button', { class: 'btn', onclick: () => { const n = tbSelNode(); if (n) startRename(n); } }, '✏️ 重命名'),
+      h('button', { class: 'btn', onclick: () => { const n = tbSelNode(); if (n) downloadFile(n); } }, '⬇️ 下载'),
+      h('button', { class: 'btn danger', onclick: () => { const n = tbSelNode(); if (n) removeNode(n); } }, '删除'),
       h('div', { class: 'spacer' }),
       h('button', { class: 'btn primary', onclick: run }, '▶ 运行'),
       h('button', { class: 'btn', onclick: async () => { await api('PUT', '/api/scripts/stop', { json: { filename: current.filename, pid: runPid } }); toast('已停止'); } }, '■ 停止'),
     ),
-    h('div', { class: 'grid2' }, treeEl,
+    h('div', { class: 'grid2' },
+      h('div', {}, treeEl,
+        h('div', { class: 'hint' }, '单击选中 · 右键菜单 · 拖拽文件到文件夹=移动 · 从电脑拖入=上传 · F2 重命名 · Del 删除')),
       h('div', {}, contentEl, outputEl)),
   );
   loadTree();
@@ -1031,7 +1209,8 @@ routes.help = async (view) => {
       hp('任务前后置代码：任务编辑弹窗中的“前置/后置代码(bash)”在该任务主脚本执行前后运行（需 bash，Windows 需安装 Git Bash）。')),
 
     hsec('scripts-help', '四、脚本管理',
-      hp('支持子目录树、在线编辑保存；同名文件自动备份到 data/bak。重命名/移动在同一弹窗完成。'),
+      hp('文件树支持资源管理器式操作：单击选中、右键菜单（新建文件/文件夹、重命名、下载、删除）、行内直接输入名称、拖拽文件到文件夹即移动、从电脑直接拖入文件即上传，快捷键 F2 重命名、Del 删除。'),
+      hp('同名文件自动备份到 data/bak；支持子目录。'),
       hp('“▶ 运行”以临时文件方式立即执行当前编辑内容（含未保存修改），输出经 WebSocket 实时回显；该方式不落盘正式文件。')),
 
     hsec('records-help', '五、运行记录',
