@@ -54,14 +54,19 @@ def create_random_string(min_len: int, max_len: int) -> str:
     return ''.join(pool)
 
 
+def _jwt_key() -> bytes:
+    """把任意长度的 JWT_SECRET 派生成 64 字节密钥，满足 HS384 对 HMAC 密钥长度的要求。"""
+    return hashlib.sha512(config.JWT_SECRET.encode()).digest()
+
+
 def make_token(data_str: str, expires_seconds: int) -> str:
     exp = datetime.now(timezone.utc) + timedelta(seconds=expires_seconds)
     payload = {'data': data_str, 'iat': int(time.time()), 'exp': exp}
-    return jwt.encode(payload, config.JWT_SECRET, algorithm=config.JWT_ALGORITHM)
+    return jwt.encode(payload, _jwt_key(), algorithm=config.JWT_ALGORITHM)
 
 
 def read_token(token: str):
-    return jwt.decode(token, config.JWT_SECRET, algorithms=[config.JWT_ALGORITHM])
+    return jwt.decode(token, _jwt_key(), algorithms=[config.JWT_ALGORITHM])
 
 
 def normalize_token(raw: str) -> str:

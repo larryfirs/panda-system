@@ -6,7 +6,7 @@ import time
 
 import httpx
 
-BASE = 'http://127.0.0.1:3939'
+BASE = os.environ.get('PD_SMOKE_BASE', 'http://127.0.0.1:3939')
 c = httpx.Client(base_url=BASE, timeout=30)
 TOKEN = {'authorization': ''}
 

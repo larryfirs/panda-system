@@ -96,15 +96,26 @@ const INST_STATUS = { 0: ['运行中', 'blue'], 1: ['成功', 'green'], 2: ['已
 function fmtTime(ts) { return ts ? new Date(ts).toLocaleString() : '-'; }
 
 /* WebSocket */
-let ws = null, wsHandlers = [];
+let ws = null, wsHandlers = [], wsFails = 0;
 function connectWs() {
-  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   const token = localStorage.getItem(LS_TOKEN) || '';
+  if (!token) return;  // 未登录不连，避免无意义的 403 重连
+  const proto = location.protocol === 'https:' ? 'wss' : 'ws';
   try { ws = new WebSocket(`${proto}://${location.host}/api/ws?token=${token}`); } catch { return; }
+  ws.onopen = () => { wsFails = 0; };
   ws.onmessage = ev => {
     try { const m = JSON.parse(ev.data); wsHandlers.forEach(fn => fn(m)); } catch { }
   };
-  ws.onclose = () => setTimeout(connectWs, 5000);
+  ws.onclose = () => {
+    if ((localStorage.getItem(LS_TOKEN) || '') !== token) return;  // 已登出/换号，停止旧连接
+    wsFails++;
+    if (wsFails >= 3) {  // 连续被拒：多半是 token 失效，调接口校验（401 会自动清 token 并跳登录页）
+      wsFails = 0;
+      api('GET', '/api/user').catch(() => { });
+      if (!localStorage.getItem(LS_TOKEN)) return;
+    }
+    setTimeout(connectWs, 5000);
+  };
 }
 function onWs(fn) { wsHandlers.push(fn); return () => { wsHandlers = wsHandlers.filter(x => x !== fn); }; }
 
